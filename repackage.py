@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import os
 import fnmatch
 import string
@@ -51,6 +53,9 @@ def __cleanUp():
     if os.path.exists(TEMP_EXTRACT_DIR):
         shutil.rmtree(TEMP_EXTRACT_DIR,ignore_errors=True)
         
+    if os.path.exists(REDEPLOY_DIR):
+        shutil.rmtree(REDEPLOY_DIR,ignore_errors=True)
+        
 
 ### search the old package file filter by package name.
 def __searchOldPackage(packageFilterName):
@@ -98,7 +103,6 @@ def __repackageFiles(tempPackageDir, oldPackageFile):
             zip.write(fn, fn[rootlen:])
 
 def __updateWarPackageFiles():
-    __cleanUp();
     
     packageName = readProperties(os.path.join(REDEPLOY_DIR,PACKAGE_INFO_FILE), PACKAGE_NAME)
     
@@ -111,12 +115,13 @@ def __updateWarPackageFiles():
     __updateModifiedFiles(REDEPLOY_DIR, TEMP_EXTRACT_DIR)
     
     __repackageFiles(TEMP_EXTRACT_DIR, packageFile)
+    
+    __cleanUp();
 
 
 def main():
     packageType = readProperties(os.path.join(REDEPLOY_DIR,PACKAGE_INFO_FILE), PACKAGE_TYPE)
-    if (packageType == 'war'):
-        __updateWarPackageFiles()
+    __updateWarPackageFiles()
     
 
 if __name__ == "__main__":

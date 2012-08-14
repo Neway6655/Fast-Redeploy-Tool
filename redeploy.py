@@ -103,19 +103,28 @@ def __copyRedeployFiles(changedFiles):
         shutil.rmtree(REDEPLOY_DIR)
     os.mkdir(REDEPLOY_DIR)
     for file in changedFiles:
-        shutil.copy(file, REDEPLOY_DIR)
-
+        try:
+            shutil.copy(file, REDEPLOY_DIR)
+        except:
+            pass 
+        
+#def __scpRedepolyedFiles2Server():
+    #call("scp -r .redeploy root@10.44.136.241:/home/occas/deployables/oauth2-api")
+    #child = pexpect.spawn('scp -r .redeploy root@10.44.136.241:/home/occas/deployables/oauth2-api')
+    #child.expect ('Password:')
+    #child.sendline ('rootroot')
 
 def main():
     projectDir = readProperties(PROPERTIES_FILE, DIR)
     fileSearchFilter = readProperties(PROPERTIES_FILE, FILTER)
     
-    changedFiles = __searchLastestModifiedFilesInDir(projectDir, fileSearchFilter, 60)
+    changedFiles = __searchLastestModifiedFilesInDir(projectDir, fileSearchFilter, 120)
     
     __copyRedeployFiles(changedFiles)
     
     __generatePackageInfoFile()
     
+ #   __scpRedepolyedFiles2Server()
     
 
 if __name__ == "__main__":
