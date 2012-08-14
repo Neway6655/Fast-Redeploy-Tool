@@ -1,36 +1,24 @@
+#!/usr/bin/python
+
 import os
 import fnmatch
 import string
 import csv
 import shutil
 import logging
+import json
 from collections import OrderedDict
 
-PROPERTIES_FILE='./redeploy.properties'
-PACKAGE_INFO_FILE='package-info'
-
-DIR='dir'
-FILTER='filter'
-PACKAGE_NAME='package_name'
-PACKAGE_TYPE='package_type'
-
 REDEPLOY_DIR='.redeploy'
+PACKAGE_INFO_FILE='package-info.json'
 
 
 FORMAT = '%(asctime)-15s %(message)s'
 logging.basicConfig(format=FORMAT)
 
-logger = logging.getLogger('repackage')
+logger = logging.getLogger('redeploy')
 logger.setLevel(logging.INFO)
 
-def readProperties(propertiesFile, key):
-    reader = csv.reader(open(propertiesFile, 'rb'), delimiter='=', quotechar='|')
-    value=''
-    for line in reader:
-        if(line[0].strip().lower() == key):
-            value = line[1].strip()
-            break
-    return value
 
 def __isFileModifiedWithinPeriod(comparedFile, baseFile, periodInSec):
     if(periodInSec == -1):
@@ -59,52 +47,38 @@ def __searchLastestModifiedFilesInDir(dir, filter, periodInSec=-1):
 
     logger.info('Changed files: ' + str(changedFiles))
     return changedFiles;
-
-
-def __loadPackageInfoFromPom():
-    if(os.path.exists('pom.xml')):
-        with open('pom.xml') as lines:
-            for line in lines:
-                line = line.strip()
-                if (line.startswith('<packaging>')):
-                    startIndex = len('<packaging>')
-                    endIndex = line.index('</packaging>')
-                    packageType = line[startIndex:endIndex]
-                    print packageType
         
-        
-def __loadPackageInfoFromProperties():
-    packageInfo = {}
-    packageName = readProperties(PROPERTIES_FILE, PACKAGE_NAME)
-    packageType = readProperties(PROPERTIES_FILE, PACKAGE_TYPE)
     
-    packageInfo[PACKAGE_NAME] = packageName
-    packageInfo[PACKAGE_TYPE] = packageType
+    
+def __generatePackageInfoFile(packageName, packageType):
+    packageInfoDict = {}
+    packageInfoDict['packageName'] = packageName
+    packageInfoDict['packageType'] = packageType
 
-    return packageInfo
-    
-    
-def __getPackageInfo():
-    return __loadPackageInfoFromProperties()
-    
-    
-def __generatePackageInfoFile():
-    packageInfo = __getPackageInfo()
-    packageInfoFilePath = os.path.join(REDEPLOY_DIR,PACKAGE_INFO_FILE)
-    ordered_fieldnames = OrderedDict([('KEY',None),('VALUE',None)])
-    writer=csv.DictWriter(open(packageInfoFilePath,'w+'), delimiter='=',fieldnames=ordered_fieldnames, extrasaction='ignore' )
-    logger.info("Package info: " + str(packageInfo))
-    for key in packageInfo.keys():
-        writer.writerow({'KEY':key, 'VALUE':packageInfo[key]})
+    if os.path.exists(os.path.join(REDEPLOY_DIR, packageName)) == False:
+        logger.error('folder "' +packageName + '" in dir "' + REDEPLOY_DIR + '"" not exists, can not write package-info.json into it')
+
+    packageInfoFilePath = os.path.join(REDEPLOY_DIR, packageName, PACKAGE_INFO_FILE)
+    packageInfoFile = open(packageInfoFilePath,'w+')
+
+    json.dump(packageInfoDict, packageInfoFile)    
+
+    packageInfoFile.close()
 
 
-def __copyRedeployFiles(changedFiles):
-    if (os.path.exists(REDEPLOY_DIR)):
-        shutil.rmtree(REDEPLOY_DIR)
-    os.mkdir(REDEPLOY_DIR)
+def __copyRedeployFiles(projectName, changedFiles):
+    if os.path.exists(REDEPLOY_DIR) == False:
+        os.mkdir(REDEPLOY_DIR)
+
+    redeployProjectPath = os.path.join(REDEPLOY_DIR,projectName)
+    if os.path.exists(redeployProjectPath):
+         shutil.rmtree(redeployProjectPath,ignore_errors=True)
+
+    os.mkdir(redeployProjectPath)
+
     for file in changedFiles:
         try:
-            shutil.copy(file, REDEPLOY_DIR)
+            shutil.copy(file, redeployProjectPath)
         except:
             pass 
         
@@ -114,17 +88,37 @@ def __copyRedeployFiles(changedFiles):
     #child.expect ('Password:')
     #child.sendline ('rootroot')
 
+def __loadProjectInfo(projectInfos, projectName):
+    logger.info('load ' + projectName + ' info.')
+    for project in projectInfos:
+        if projectName in project:        
+            return project[projectName]
+
+
 def main():
-    projectDir = readProperties(PROPERTIES_FILE, DIR)
-    fileSearchFilter = readProperties(PROPERTIES_FILE, FILTER)
+    jsonFile = open('redeploy.json', 'rb')
+    redeployData = json.load(jsonFile)
     
-    changedFiles = __searchLastestModifiedFilesInDir(projectDir, fileSearchFilter, 120)
-    
-    __copyRedeployFiles(changedFiles)
-    
-    __generatePackageInfoFile()
+    sourceProjectNames = redeployData['sourceProjects']
+    projectInfos = redeployData['projects']
+
+    for projectName in sourceProjectNames:
+        projectInfo = __loadProjectInfo(projectInfos, projectName)
+
+        searchDir = projectInfo['buildPath']
+        searchFilter = projectInfo['filter']
+
+        changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 120)
+
+        packageName = projectInfo['packageName']
+        
+        __copyRedeployFiles(packageName, changedFiles)
+        
+        __generatePackageInfoFile(packageName, projectInfo['packageType'])
     
  #   __scpRedepolyedFiles2Server()
+
+    jsonFile.close()
     
 
 if __name__ == "__main__":
