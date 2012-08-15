@@ -5,13 +5,10 @@ import fnmatch
 import string
 import shutil
 import zipfile
-import csv
 import logging
+import json
 from datetime import datetime
 
-PACKAGE_INFO_FILE='package-info'
-PACKAGE_NAME='package_name'
-PACKAGE_TYPE='package_type'
 
 TEMP_EXTRACT_DIR='.temp'
 REDEPLOY_DIR='.redeploy'
@@ -34,18 +31,6 @@ def searchAndReplaceFile(modifiedFile, fileName, desDir):
     for root,dirnames,filenames in os.walk(desDir):
         for filename in fnmatch.filter(filenames, fileName):
             shutil.copy(modifiedFile, os.path.join(root,filename))
-
-
-### read value from csv file with 'key=value' format
-def readProperties(propertiesFile, key):
-    reader = csv.reader(open(propertiesFile, 'rb'), delimiter='=', quotechar='|')
-    value=''
-    for line in reader:
-        if(line[0].strip().lower() == key):
-            value = line[1].strip()
-            break
-        
-    return value
 
 
 ### clean up the temp dir which used for extract old package files and packaging new files.
@@ -88,9 +73,8 @@ def __extractOldPackageFiles(packageFile, desPackageDir):
 ### update the modified files into the desFilesDir.
 def __updateModifiedFiles(modifiedFilesDir, desFilesDir):
     for root,dirnames,filenames in os.walk(modifiedFilesDir):
-        for filename in filenames:
-            if(filename != PACKAGE_INFO_FILE):
-                searchAndReplaceFile(os.path.join(root, filename), filename, desFilesDir)
+        for filename in filenames:            
+            searchAndReplaceFile(os.path.join(root, filename), filename, desFilesDir)
 
 
 ### re-package the tempPackageDir as an new package and replace the oldPackageFile
@@ -102,26 +86,59 @@ def __repackageFiles(tempPackageDir, oldPackageFile):
             fn = os.path.join(base, file)
             zip.write(fn, fn[rootlen:])
 
-def __updateWarPackageFiles():
-    
-    packageName = readProperties(os.path.join(REDEPLOY_DIR,PACKAGE_INFO_FILE), PACKAGE_NAME)
-    
-    packageFile = __searchOldPackage(packageName + '*.war')
-    
-    __backupOldPackage(packageFile)
-    
-    __extractOldPackageFiles(packageFile, TEMP_EXTRACT_DIR)
-    
-    __updateModifiedFiles(REDEPLOY_DIR, TEMP_EXTRACT_DIR)
-    
-    __repackageFiles(TEMP_EXTRACT_DIR, packageFile)
-    
-    __cleanUp();
+
+def __getPackageType(packageInfos, packageName):
+    for packageInfo in packageInfos:
+        if packageName in packageInfo:
+            return packageInfo[packageName]['packageType']
+
+    logger.error('Can not find package type of package: ' + packageName)
+    exit(1)
+
+def __cleanUpTemporaryDir(tempDir):
+    if os.path.exists(tempDir):
+        shutil.rmtree(tempDir, ignore_errors=True)
+
+
+def __updatePackageFiles(packageName, packagetType, needBackup):
+    packageFile = __searchOldPackage(packageName + '*.' + packagetType)
+
+    if needBackup:
+        __backupOldPackage(packageFile)
+
+    packageDir = os.path.dirname(packageFile)
+    tempExtractDir = os.path.join(packageDir, TEMP_EXTRACT_DIR, packageName)
+    __extractOldPackageFiles(packageFile, tempExtractDir)
+    __updateModifiedFiles(os.path.join(REDEPLOY_DIR, packageName), tempExtractDir)
+
+    return packageFile
 
 
 def main():
-    packageType = readProperties(os.path.join(REDEPLOY_DIR,PACKAGE_INFO_FILE), PACKAGE_TYPE)
-    __updateWarPackageFiles()
+    jsonFile = open(os.path.join(REDEPLOY_DIR,'redeploy.json'), 'rb')
+    redeployData = json.load(jsonFile)
+
+    targetPackage = redeployData['targetPackage']
+    sourcePackages = redeployData['sourcePackages']
+    packageInfos = redeployData['packages']
+    
+    # first, find the target package in dest server, and un-package it, and replace the files in .redeploy's target package folder.    
+    targetPackageType = __getPackageType(packageInfos, targetPackage)
+    packageFile = __updatePackageFiles(targetPackage, targetPackageType, True)
+    
+    # second, replace the files in .redeploy's left sub-packages.
+    for sourcePackage in sourcePackages:
+        if sourcePackage != targetPackage:
+            sourcePackageType = __getPackageType(packageInfos, sourcePackage)
+            sourcePackageFile = __updatePackageFiles(sourcePackage, sourcePackageType, False)
+
+            sourcePackageDir = os.path.dirname(sourcePackageFile)
+            tempExtractDir = os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR, sourcePackage)
+            __repackageFiles(tempExtractDir, sourcePackageFile)
+            __cleanUpTemporaryDir(os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR))
+
+    __repackageFiles(TEMP_EXTRACT_DIR, packageFile)
+    __cleanUpTemporaryDir(TEMP_EXTRACT_DIR)
     
 
 if __name__ == "__main__":

@@ -3,7 +3,6 @@
 import os
 import fnmatch
 import string
-import csv
 import shutil
 import logging
 import json
@@ -59,9 +58,9 @@ def __copyRedeployFiles(packageName, changedFiles):
 
     os.mkdir(redeployPackagePath)
 
-    for file in changedFiles:
+    for changedFile in changedFiles:
         try:
-            shutil.copy(file, redeployPackagePath)
+            shutil.copy(changedFile, redeployPackagePath)
         except:
             pass 
 
@@ -88,10 +87,15 @@ def main():
 
         changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 120)        
         
-        __copyRedeployFiles(packageName, changedFiles)        
+        __copyRedeployFiles(packageName, changedFiles)    
     
 
     jsonFile.close()
+
+    try:
+        shutil.copy('redeploy.json', REDEPLOY_DIR)
+    except:
+        pass
     
 
 if __name__ == "__main__":
