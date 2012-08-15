@@ -47,23 +47,6 @@ def __searchLastestModifiedFilesInDir(dir, filter, periodInSec=-1):
 
     logger.info('Changed files: ' + str(changedFiles))
     return changedFiles;
-        
-    
-    
-def __generatePackageInfoFile(packageName, packageType):
-    packageInfoDict = {}
-    packageInfoDict['packageName'] = packageName
-    packageInfoDict['packageType'] = packageType
-
-    if os.path.exists(os.path.join(REDEPLOY_DIR, packageName)) == False:
-        logger.error('folder "' +packageName + '" in dir "' + REDEPLOY_DIR + '"" not exists, can not write package-info.json into it')
-
-    packageInfoFilePath = os.path.join(REDEPLOY_DIR, packageName, PACKAGE_INFO_FILE)
-    packageInfoFile = open(packageInfoFilePath,'w+')
-
-    json.dump(packageInfoDict, packageInfoFile)    
-
-    packageInfoFile.close()
 
 
 def __copyRedeployFiles(packageName, changedFiles):
@@ -81,12 +64,7 @@ def __copyRedeployFiles(packageName, changedFiles):
             shutil.copy(file, redeployPackagePath)
         except:
             pass 
-        
-#def __scpRedepolyedFiles2Server():
-    #call("scp -r .redeploy root@10.44.136.241:/home/occas/deployables/oauth2-api")
-    #child = pexpect.spawn('scp -r .redeploy root@10.44.136.241:/home/occas/deployables/oauth2-api')
-    #child.expect ('Password:')
-    #child.sendline ('rootroot')
+
 
 def __loadPackageInfo(packageInfos, packageName):
     logger.info('load ' + packageName + ' info.')
@@ -110,11 +88,8 @@ def main():
 
         changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 120)        
         
-        __copyRedeployFiles(packageName, changedFiles)
-        
-        __generatePackageInfoFile(packageName, packageInfo['packageType'])
+        __copyRedeployFiles(packageName, changedFiles)        
     
- #   __scpRedepolyedFiles2Server()
 
     jsonFile.close()
     
