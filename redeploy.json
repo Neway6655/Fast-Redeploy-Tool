@@ -1,21 +1,19 @@
 {
-	"targetProject": "oauth-server",
-	"sourceProjects": [
+	"targetPackage": "oauth2-api",
+	"sourcePackages": [
 		"oauth-common",
-		"oauth-server"
+		"oauth2-api"
 	],
-	"projects": [
+	"packages": [
 		{
-			"oauth-server": {
-				"packageName": "oauth2-api",
+			"oauth2-api": {				
 				"packageType": "war",
-				"buildPath": "C:\\work\\ECE\\oauth\\oauth-server\\oauth-server\\target\\classes",
+				"filePath": "C:\\work\\ECE\\oauth\\oauth-server\\oauth-server\\target\\classes",
 				"filter": "*.class"
 			},
 			"oauth-common": {
-				"packageName": "oauth-common",
 				"packageType": "jar",
-				"buildPath": "C:\\work\\ECE\\oauth\\oauth-common\\target\\classes",
+				"filePath": "C:\\work\\ECE\\oauth\\oauth-common\\target\\classes",
 				"filter": "*.class"
 			}
 		}

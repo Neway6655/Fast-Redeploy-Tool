@@ -66,19 +66,19 @@ def __generatePackageInfoFile(packageName, packageType):
     packageInfoFile.close()
 
 
-def __copyRedeployFiles(projectName, changedFiles):
+def __copyRedeployFiles(packageName, changedFiles):
     if os.path.exists(REDEPLOY_DIR) == False:
         os.mkdir(REDEPLOY_DIR)
 
-    redeployProjectPath = os.path.join(REDEPLOY_DIR,projectName)
-    if os.path.exists(redeployProjectPath):
-         shutil.rmtree(redeployProjectPath,ignore_errors=True)
+    redeployPackagePath = os.path.join(REDEPLOY_DIR,packageName)
+    if os.path.exists(redeployPackagePath):
+         shutil.rmtree(redeployPackagePath,ignore_errors=True)
 
-    os.mkdir(redeployProjectPath)
+    os.mkdir(redeployPackagePath)
 
     for file in changedFiles:
         try:
-            shutil.copy(file, redeployProjectPath)
+            shutil.copy(file, redeployPackagePath)
         except:
             pass 
         
@@ -88,33 +88,31 @@ def __copyRedeployFiles(projectName, changedFiles):
     #child.expect ('Password:')
     #child.sendline ('rootroot')
 
-def __loadProjectInfo(projectInfos, projectName):
-    logger.info('load ' + projectName + ' info.')
-    for project in projectInfos:
-        if projectName in project:        
-            return project[projectName]
+def __loadPackageInfo(packageInfos, packageName):
+    logger.info('load ' + packageName + ' info.')
+    for packageInfo in packageInfos:
+        if packageName in packageInfo:        
+            return packageInfo[packageName]
 
 
 def main():
     jsonFile = open('redeploy.json', 'rb')
     redeployData = json.load(jsonFile)
     
-    sourceProjectNames = redeployData['sourceProjects']
-    projectInfos = redeployData['projects']
+    sourcePackageNames = redeployData['sourcePackages']
+    packageInfos = redeployData['packages']
 
-    for projectName in sourceProjectNames:
-        projectInfo = __loadProjectInfo(projectInfos, projectName)
+    for packageName in sourcePackageNames:
+        packageInfo = __loadPackageInfo(packageInfos, packageName)
 
-        searchDir = projectInfo['buildPath']
-        searchFilter = projectInfo['filter']
+        searchDir = packageInfo['filePath']
+        searchFilter = packageInfo['filter']
 
-        changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 120)
-
-        packageName = projectInfo['packageName']
+        changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 120)        
         
         __copyRedeployFiles(packageName, changedFiles)
         
-        __generatePackageInfoFile(packageName, projectInfo['packageType'])
+        __generatePackageInfoFile(packageName, packageInfo['packageType'])
     
  #   __scpRedepolyedFiles2Server()
 
