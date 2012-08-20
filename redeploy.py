@@ -26,11 +26,11 @@ def __isFileModifiedWithinPeriod(comparedFile, baseFile, periodInSec):
         return os.stat(comparedFile).st_mtime + periodInSec >= os.stat(baseFile).st_mtime
     
 
-def __searchLastestModifiedFilesInDir(dir, periodInSec=-1):
+def __searchLastestModifiedFilesInDir(dir, filter, periodInSec=-1):
     changedFiles=[]
     matchFiles=[]
     for root,dirnames,filenames in os.walk(dir):
-        for filename in fnmatch.filter(filenames, '*'):
+        for filename in fnmatch.filter(filenames, filter):
             matchFiles.append(os.path.join(root,filename))
 
     latestFileTime=os.stat(matchFiles[0]).st_mtime
@@ -59,8 +59,19 @@ def __copyRedeployFiles(packageName, changedFiles):
     os.mkdir(redeployPackagePath)
 
     for changedFile in changedFiles:
+        fileFolderStartIndex = changedFile.find('classes') + len('classes') + 1
+        fileFolderEndIndex = changedFile.rfind('\\')
+        fileFolderPath = changedFile[fileFolderStartIndex:fileFolderEndIndex]
+        print fileFolderPath
+
+        fileFolderFullPath = os.path.join(redeployPackagePath,fileFolderPath)
         try:
-            shutil.copy(changedFile, redeployPackagePath)
+            os.makedirs(fileFolderFullPath)
+        except:
+            pass
+
+        try:
+            shutil.copy(changedFile, fileFolderFullPath)
         except:
             pass 
 
@@ -84,7 +95,12 @@ def main():
 
         searchDir = packageInfo['filePath']
 
-        changedFiles = __searchLastestModifiedFilesInDir(searchDir, 120)        
+        if 'filter' in packageInfo:
+            searchFilter = packageInfo['filter']
+        else:
+            searchFilter = '*'
+
+        changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 600)        
         
         __copyRedeployFiles(packageName, changedFiles)    
     

@@ -25,14 +25,6 @@ def getCurrentDateTime():
     return string.join([str(now.year),str(now.month),str(now.day)],'.')+'_'+string.join([str(now.hour),str(now.minute)],'.')
 
 
-### Search file in the desDir with fileName, then replace it with new modifiedFile. 
-def searchAndReplaceFile(modifiedFile, fileName, desDir):
-    logger.info('update file: ' + fileName)
-    for root,dirnames,filenames in os.walk(desDir):
-        for filename in fnmatch.filter(filenames, fileName):
-            shutil.copy(modifiedFile, os.path.join(root,filename))
-
-
 ### clean up the temp dir which used for extract old package files and packaging new files.
 def __cleanUp():
     if os.path.exists(TEMP_EXTRACT_DIR):
@@ -66,15 +58,25 @@ def __backupOldPackage(packageFile):
         
 ### extract the old package files into desPackageDir
 def __extractOldPackageFiles(packageFile, desPackageDir):
+    logger.info('extract package files into ' + desPackageDir)
     z = zipfile.ZipFile(packageFile)
     z.extractall(desPackageDir)
 
 
 ### update the modified files into the desFilesDir.
-def __updateModifiedFiles(modifiedFilesDir, desFilesDir):
+def __updateModifiedFiles(modifiedFilesDir, desFilesDir, packageName, packageType):
+    dst = desFilesDir
+    if packageType == 'war':
+        dst = os.path.join(desFilesDir, 'WEB-INF', 'classes')
+
     for root,dirnames,filenames in os.walk(modifiedFilesDir):
-        for filename in filenames:            
-            searchAndReplaceFile(os.path.join(root, filename), filename, desFilesDir)
+        index = root.find(packageName) + len(packageName) + 1
+        if not index >= len(root):
+            for dirname in dirnames:
+                if not os.path.exists(os.path.join(dst, root[index:], dirname)):
+                    os.makedirs(os.path.join(dst, root[index:], dirnames))
+            for filename in filenames:
+                shutil.copy(os.path.join(root, filename), os.path.join(dst, root[index:], filename))
 
 
 ### re-package the tempPackageDir as an new package and replace the oldPackageFile
@@ -100,8 +102,8 @@ def __cleanUpTemporaryDir(tempDir):
         shutil.rmtree(tempDir, ignore_errors=True)
 
 
-def __updatePackageFiles(packageName, packagetType, needBackup):
-    packageFile = __searchOldPackage(packageName + '*.' + packagetType)
+def __updatePackageFiles(packageName, packageType, needBackup):
+    packageFile = __searchOldPackage(packageName + '*.' + packageType)
 
     if needBackup:
         __backupOldPackage(packageFile)
@@ -109,7 +111,7 @@ def __updatePackageFiles(packageName, packagetType, needBackup):
     packageDir = os.path.dirname(packageFile)
     tempExtractDir = os.path.join(packageDir, TEMP_EXTRACT_DIR, packageName)
     __extractOldPackageFiles(packageFile, tempExtractDir)
-    __updateModifiedFiles(os.path.join(REDEPLOY_DIR, packageName), tempExtractDir)
+    __updateModifiedFiles(os.path.join(REDEPLOY_DIR, packageName), tempExtractDir, packageName, packageType)
 
     return packageFile
 
@@ -139,6 +141,8 @@ def main():
 
     __repackageFiles(TEMP_EXTRACT_DIR, packageFile)
     __cleanUpTemporaryDir(TEMP_EXTRACT_DIR)
+
+    logger.info('repackage finished.')
     
 
 if __name__ == "__main__":
