@@ -26,11 +26,11 @@ def __isFileModifiedWithinPeriod(comparedFile, baseFile, periodInSec):
         return os.stat(comparedFile).st_mtime + periodInSec >= os.stat(baseFile).st_mtime
     
 
-def __searchLastestModifiedFilesInDir(dir, filter, periodInSec=-1):
+def __searchLastestModifiedFilesInDir(dir, periodInSec=-1):
     changedFiles=[]
     matchFiles=[]
     for root,dirnames,filenames in os.walk(dir):
-        for filename in fnmatch.filter(filenames, filter):
+        for filename in fnmatch.filter(filenames, '*'):
             matchFiles.append(os.path.join(root,filename))
 
     latestFileTime=os.stat(matchFiles[0]).st_mtime
@@ -83,9 +83,8 @@ def main():
         packageInfo = __loadPackageInfo(packageInfos, packageName)
 
         searchDir = packageInfo['filePath']
-        searchFilter = packageInfo['filter']
 
-        changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 120)        
+        changedFiles = __searchLastestModifiedFilesInDir(searchDir, 120)        
         
         __copyRedeployFiles(packageName, changedFiles)    
     

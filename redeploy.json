@@ -8,13 +8,11 @@
 		{
 			"oauth2-api": {				
 				"packageType": "war",
-				"filePath": "C:\\work\\ECE\\oauth\\oauth-server\\oauth-server\\target\\classes",
-				"filter": "*.class"
+				"filePath": "C:\\work\\ECE\\oauth\\oauth-server\\oauth-server\\target\\classes"
 			},
 			"oauth-common": {
 				"packageType": "jar",
-				"filePath": "C:\\work\\ECE\\oauth\\oauth-common\\target\\classes",
-				"filter": "*.class"
+				"filePath": "C:\\work\\ECE\\oauth\\oauth-common\\target\\classes"
 			}
 		}
 	]
