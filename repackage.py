@@ -53,6 +53,7 @@ def __searchOldPackage(packageFilterName):
 ### back up the old package with current dateTime as suffix.
 def __backupOldPackage(packageFile):
     currentTimeString = getCurrentDateTime()
+    logger.info('backup old package: ' + packageFile)
     shutil.copy(packageFile, packageFile + '_' + currentTimeString)
         
         
@@ -76,6 +77,7 @@ def __updateModifiedFiles(modifiedFilesDir, desFilesDir, packageName, packageTyp
                 if not os.path.exists(os.path.join(dst, root[index:], dirname)):
                     os.makedirs(os.path.join(dst, root[index:], dirnames))
             for filename in filenames:
+                logger.info('update file: ' + filename)
                 shutil.copy(os.path.join(root, filename), os.path.join(dst, root[index:], filename))
 
 
@@ -109,7 +111,7 @@ def __updatePackageFiles(packageName, packageType, needBackup):
         __backupOldPackage(packageFile)
 
     packageDir = os.path.dirname(packageFile)
-    tempExtractDir = os.path.join(packageDir, TEMP_EXTRACT_DIR, packageName)
+    tempExtractDir = os.path.join(packageDir, TEMP_EXTRACT_DIR)
     __extractOldPackageFiles(packageFile, tempExtractDir)
     __updateModifiedFiles(os.path.join(REDEPLOY_DIR, packageName), tempExtractDir, packageName, packageType)
 
@@ -135,7 +137,7 @@ def main():
             sourcePackageFile = __updatePackageFiles(sourcePackage, sourcePackageType, False)
 
             sourcePackageDir = os.path.dirname(sourcePackageFile)
-            tempExtractDir = os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR, sourcePackage)
+            tempExtractDir = os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR)
             __repackageFiles(tempExtractDir, sourcePackageFile)
             __cleanUpTemporaryDir(os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR))
 
