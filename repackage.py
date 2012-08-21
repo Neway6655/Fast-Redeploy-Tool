@@ -12,6 +12,7 @@ from datetime import datetime
 
 TEMP_EXTRACT_DIR='.temp'
 REDEPLOY_DIR='.redeploy'
+REDEPLOY_ZIP='redeploy.zip'
 
 FORMAT = '%(asctime)-15s %(message)s'
 logging.basicConfig(format=FORMAT)
@@ -23,15 +24,6 @@ logger.setLevel(logging.INFO)
 def getCurrentDateTime():
     now = datetime.now()
     return string.join([str(now.year),str(now.month),str(now.day)],'.')+'_'+string.join([str(now.hour),str(now.minute)],'.')
-
-
-### clean up the temp dir which used for extract old package files and packaging new files.
-def __cleanUp():
-    if os.path.exists(TEMP_EXTRACT_DIR):
-        shutil.rmtree(TEMP_EXTRACT_DIR,ignore_errors=True)
-        
-    if os.path.exists(REDEPLOY_DIR):
-        shutil.rmtree(REDEPLOY_DIR,ignore_errors=True)
         
 
 ### search the old package file filter by package name.
@@ -58,7 +50,7 @@ def __backupOldPackage(packageFile):
         
         
 ### extract the old package files into desPackageDir
-def __extractOldPackageFiles(packageFile, desPackageDir):
+def __extractPackageFiles(packageFile, desPackageDir):
     logger.info('extract package files into ' + desPackageDir)
     z = zipfile.ZipFile(packageFile)
     z.extractall(desPackageDir)
@@ -99,9 +91,12 @@ def __getPackageType(packageInfos, packageName):
     logger.error('Can not find package type of package: ' + packageName)
     exit(1)
 
-def __cleanUpTemporaryDir(tempDir):
-    if os.path.exists(tempDir):
-        shutil.rmtree(tempDir, ignore_errors=True)
+def __cleanUpFileOrDir(tempFileOrDir):
+    if os.path.exists(tempFileOrDir):
+        if os.path.isdir(tempFileOrDir):
+            shutil.rmtree(tempFileOrDir, ignore_errors=True)
+        else:
+            os.remove(tempFileOrDir)
 
 
 def __updatePackageFiles(packageName, packageType, needBackup):
@@ -112,13 +107,15 @@ def __updatePackageFiles(packageName, packageType, needBackup):
 
     packageDir = os.path.dirname(packageFile)
     tempExtractDir = os.path.join(packageDir, TEMP_EXTRACT_DIR)
-    __extractOldPackageFiles(packageFile, tempExtractDir)
+    __extractPackageFiles(packageFile, tempExtractDir)
     __updateModifiedFiles(os.path.join(REDEPLOY_DIR, packageName), tempExtractDir, packageName, packageType)
 
     return packageFile
 
 
 def main():
+    __extractPackageFiles(REDEPLOY_ZIP, REDEPLOY_DIR)
+
     jsonFile = open(os.path.join(REDEPLOY_DIR,'redeploy.json'), 'rb')
     redeployData = json.load(jsonFile)
 
@@ -139,10 +136,14 @@ def main():
             sourcePackageDir = os.path.dirname(sourcePackageFile)
             tempExtractDir = os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR)
             __repackageFiles(tempExtractDir, sourcePackageFile)
-            __cleanUpTemporaryDir(os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR))
+            __cleanUpFileOrDir(os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR))
 
     __repackageFiles(TEMP_EXTRACT_DIR, packageFile)
-    __cleanUpTemporaryDir(TEMP_EXTRACT_DIR)
+    jsonFile.close()
+
+    __cleanUpFileOrDir(TEMP_EXTRACT_DIR)
+    __cleanUpFileOrDir(REDEPLOY_DIR)
+    __cleanUpFileOrDir(REDEPLOY_ZIP)
 
     logger.info('repackage finished.')
     

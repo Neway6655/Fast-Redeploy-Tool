@@ -6,7 +6,7 @@ import string
 import shutil
 import logging
 import json
-from collections import OrderedDict
+import zipfile
 
 REDEPLOY_DIR='.redeploy'
 PACKAGE_INFO_FILE='package-info.json'
@@ -48,7 +48,7 @@ def __searchLastestModifiedFilesInDir(dir, filter, periodInSec=-1):
     return changedFiles;
 
 
-def __copyRedeployFiles(packageName, changedFiles):
+def __copyRedeployFiles(changedFiles, packageName):
     if os.path.exists(REDEPLOY_DIR) == False:
         os.mkdir(REDEPLOY_DIR)
 
@@ -83,6 +83,17 @@ def __loadPackageInfo(packageInfos, packageName):
             return packageInfo[packageName]
 
 
+def __compressAndPackage(compressFolder, compressPackageName):
+    zip = zipfile.ZipFile(compressPackageName, 'w', compression=zipfile.ZIP_DEFLATED)
+    rootlen = len(compressFolder) + 1
+    for base, dirs, files in os.walk(compressFolder):
+        for file in files:
+            fn = os.path.join(base, file)
+            zip.write(fn, fn[rootlen:])
+
+    shutil.rmtree(compressFolder, ignore_errors=True)
+
+
 def main():
     jsonFile = open('redeploy.json', 'rb')
     redeployData = json.load(jsonFile)
@@ -102,8 +113,7 @@ def main():
 
         changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 600)        
         
-        __copyRedeployFiles(packageName, changedFiles)    
-    
+        __copyRedeployFiles(changedFiles, packageName)
 
     jsonFile.close()
 
@@ -111,6 +121,8 @@ def main():
         shutil.copy('redeploy.json', REDEPLOY_DIR)
     except:
         pass
+
+    __compressAndPackage(REDEPLOY_DIR, 'redeploy.zip')    
     
 
 if __name__ == "__main__":
