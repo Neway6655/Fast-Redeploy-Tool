@@ -1,4 +1,8 @@
 {
+	"targetServerIP": "10.44.131.75",
+	"targetServerUser": "root",
+	"targetServerPwd": "rootroot",
+	"targetServerDeployPath": "/home/occas/deployables/oauth2-api",
 	"targetPackage": "oauth2-api",
 	"sourcePackages": [
 		"oauth-common",

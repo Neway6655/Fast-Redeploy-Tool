@@ -7,6 +7,8 @@ import shutil
 import logging
 import json
 import zipfile
+import sys
+import pexpect
 
 REDEPLOY_DIR='.redeploy'
 PACKAGE_INFO_FILE='package-info.json'
@@ -32,7 +34,8 @@ def __searchLastestModifiedFilesInDir(dir, filter, periodInSec=-1):
     for root,dirnames,filenames in os.walk(dir):
         for filename in fnmatch.filter(filenames, filter):
             matchFiles.append(os.path.join(root,filename))
-
+    if len(matchFiles)==0:
+        return changedFiles
     latestFileTime=os.stat(matchFiles[0]).st_mtime
     latestFile=matchFiles[0];
     for resultFile in matchFiles:
@@ -60,7 +63,7 @@ def __copyRedeployFiles(changedFiles, packageName):
 
     for changedFile in changedFiles:
         fileFolderStartIndex = changedFile.find('classes') + len('classes') + 1
-        fileFolderEndIndex = changedFile.rfind('\\')
+        fileFolderEndIndex = changedFile.rfind(os.sep)
         fileFolderPath = changedFile[fileFolderStartIndex:fileFolderEndIndex]
         print fileFolderPath
 
@@ -84,6 +87,9 @@ def __loadPackageInfo(packageInfos, packageName):
 
 
 def __compressAndPackage(compressFolder, compressPackageName):
+    if os.path.exists(compressPackageName):
+        shutil.rmtree(compressPackageName, ignore_errors=True)
+
     zip = zipfile.ZipFile(compressPackageName, 'w', compression=zipfile.ZIP_DEFLATED)
     rootlen = len(compressFolder) + 1
     for base, dirs, files in os.walk(compressFolder):
@@ -92,6 +98,52 @@ def __compressAndPackage(compressFolder, compressPackageName):
             zip.write(fn, fn[rootlen:])
 
     shutil.rmtree(compressFolder, ignore_errors=True)
+
+
+def __scpFiles(targetIp, targetUser, targetUserPwd, targetDeployPath):
+    logger.info('scp redeploy files.')
+    child = pexpect.spawn('scp -r redeploy.zip repackage.py '+ targetUser + '@' + targetIp + ':' + targetDeployPath)
+    child.logfile = sys.stdout
+    __scpExpectIteration(child, targetUserPwd)
+
+
+def __scpExpectIteration(child, targetUserPwd):
+    result = child.expect(['Are you sure you want to continue connecting (yes/no)?', '(?i)password', pexpect.TIMEOUT, pexpect.EOF])
+    if result == 0:
+        child.sendline('yes')
+        __scpExpectIteration(child, targetUserPwd)
+    if result == 1:
+        child.sendline(targetUserPwd)
+        __scpExpectIteration(child, targetUserPwd)
+    if result == 2:
+        logger.error('scp files failed due to timeout.')
+    if result == 3:
+        pass
+
+
+def __executeRemoteScript(targetIp, targetUser, targetUserPwd, targetDeployPath):
+    logger.info('execute repackage.py script in remote target server.')
+    child = pexpect.spawn('ssh ' + targetUser + '@' + targetIp, timeout=None)
+    child.logfile = sys.stdout
+    __exeucteRemoteScriptExpectIteration(child, targetUserPwd, targetDeployPath)
+
+
+def __exeucteRemoteScriptExpectIteration(child, targetUserPwd, targetDeployPath):
+    result = child.expect(['Are you sure you want to continue connecting', '(?i)password:', pexpect.TIMEOUT, pexpect.EOF])
+    if result == 0:
+        child.sendline('yes')
+        __exeucteRemoteScriptExpectIteration(child, targetUserPwd, targetDeployPath)
+    if result == 1:
+        child.sendline(targetUserPwd)
+        child.expect('#')
+        child.sendline('cd ' + targetDeployPath)
+        child.expect('#')
+        child.sendline('./repackage.py')
+        __exeucteRemoteScriptExpectIteration(child, targetUserPwd, targetDeployPath)
+    if result ==2:
+        logger.error('execute remote script failed due to timeout.')
+    if result ==3:
+        pexpect.terminate()
 
 
 def main():
@@ -111,9 +163,10 @@ def main():
         else:
             searchFilter = '*'
 
-        changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 600)        
+        changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 600)
         
-        __copyRedeployFiles(changedFiles, packageName)
+        if len(changedFiles) != 0:
+            __copyRedeployFiles(changedFiles, packageName)
 
     jsonFile.close()
 
@@ -122,8 +175,15 @@ def main():
     except:
         pass
 
-    __compressAndPackage(REDEPLOY_DIR, 'redeploy.zip')    
-    
+    __compressAndPackage(REDEPLOY_DIR, 'redeploy.zip')
+
+    targetIp = redeployData['targetServerIP']
+    targetUser = redeployData['targetServerUser']
+    targetUserPwd = redeployData['targetServerPwd']
+    targetDeployPath = redeployData['targetServerDeployPath']
+
+    __scpFiles(targetIp, targetUser, targetUserPwd, targetDeployPath)
+    __executeRemoteScript(targetIp, targetUser, targetUserPwd, targetDeployPath)
 
 if __name__ == "__main__":
     main()
