@@ -59,7 +59,7 @@ def __backupOldPackage(packageFile):
         
 ### extract the old package files into desPackageDir
 def __extractPackageFiles(packageFile, desPackageDir):
-    logger.info('extract package files into ' + desPackageDir)
+    logger.info('extract package files: ' + packageFile + ' into ' + desPackageDir)
     z = zipfile.ZipFile(packageFile)
     z.extractall(desPackageDir)
 
