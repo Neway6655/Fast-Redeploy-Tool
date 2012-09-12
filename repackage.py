@@ -72,7 +72,7 @@ def __updateModifiedFiles(modifiedFilesDir, desFilesDir, packageName, packageTyp
 
     for root,dirnames,filenames in os.walk(modifiedFilesDir):
         index = root.find(packageName) + len(packageName) + 1
-        if not index >= len(root):
+        if not index > len(root) + 1:
             for dirname in dirnames:
                 if not os.path.exists(os.path.join(dst, root[index:], dirname)):
                     os.makedirs(os.path.join(dst, root[index:], dirnames))
