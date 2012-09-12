@@ -35,7 +35,7 @@ def __searchLastestModifiedFilesInDir(dir, filter, periodInSec=-1):
         for filename in fnmatch.filter(filenames, filter):
             matchFiles.append(os.path.join(root,filename))
     if len(matchFiles)==0:
-        return changedFiles
+    	return changedFiles
     latestFileTime=os.stat(matchFiles[0]).st_mtime
     latestFile=matchFiles[0];
     for resultFile in matchFiles:
@@ -139,11 +139,13 @@ def __exeucteRemoteScriptExpectIteration(child, targetUserPwd, targetDeployPath)
         child.sendline('cd ' + targetDeployPath)
         child.expect('#')
         child.sendline('./repackage.py')
+        child.expect('#')
+        child.sendline('exit')
         __exeucteRemoteScriptExpectIteration(child, targetUserPwd, targetDeployPath)
     if result ==2:
         logger.error('execute remote script failed due to timeout.')
     if result ==3:
-        pexpect.terminate()
+        pass
 
 
 def main():

@@ -26,6 +26,14 @@ def getCurrentDateTime():
     return string.join([str(now.year),str(now.month),str(now.day)],'.')+'_'+string.join([str(now.hour),str(now.minute)],'.')
         
 
+### clean up the folder generated temporary.
+def __cleanUpOldTempFiles():
+    if os.path.exists(REDEPLOY_DIR):
+        shutil.rmtree(REDEPLOY_DIR, ignore_errors=True)
+    if os.path.exists(TEMP_EXTRACT_DIR):
+        shutil.rmtree(TEMP_EXTRACT_DIR, ignore_errors=True)
+
+
 ### search the old package file filter by package name.
 def __searchOldPackage(packageFilterName):
     packageFile = ''
@@ -114,6 +122,7 @@ def __updatePackageFiles(packageName, packageType, needBackup):
 
 
 def main():
+    __cleanUpOldTempFiles()
     __extractPackageFiles(REDEPLOY_ZIP, REDEPLOY_DIR)
 
     jsonFile = open(os.path.join(REDEPLOY_DIR,'redeploy.json'), 'rb')
