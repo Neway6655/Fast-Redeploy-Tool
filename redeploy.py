@@ -8,7 +8,9 @@ import logging
 import json
 import zipfile
 import sys
-import pexpect
+
+if not sys.platform.startswith('win'):
+    import pexpect
 
 REDEPLOY_DIR='.redeploy'
 PACKAGE_INFO_FILE='package-info.json'
@@ -179,13 +181,14 @@ def main():
 
     __compressAndPackage(REDEPLOY_DIR, 'redeploy.zip')
 
-    targetIp = redeployData['targetServerIP']
-    targetUser = redeployData['targetServerUser']
-    targetUserPwd = redeployData['targetServerPwd']
-    targetDeployPath = redeployData['targetServerDeployPath']
+    if not sys.platform.startswith('win'):
+        targetIp = redeployData['targetServerIP']
+        targetUser = redeployData['targetServerUser']
+        targetUserPwd = redeployData['targetServerPwd']
+        targetDeployPath = redeployData['targetServerDeployPath']
 
-    __scpFiles(targetIp, targetUser, targetUserPwd, targetDeployPath)
-    __executeRemoteScript(targetIp, targetUser, targetUserPwd, targetDeployPath)
+        __scpFiles(targetIp, targetUser, targetUserPwd, targetDeployPath)
+        __executeRemoteScript(targetIp, targetUser, targetUserPwd, targetDeployPath)
 
 if __name__ == "__main__":
     main()
