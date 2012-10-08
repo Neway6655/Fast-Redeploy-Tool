@@ -104,7 +104,7 @@ def __compressAndPackage(compressFolder, compressPackageName):
 
 def __scpFiles(targetIp, targetUser, targetUserPwd, targetDeployPath):
     logger.info('scp redeploy files.')
-    child = pexpect.spawn('scp -r redeploy.zip repackage.py '+ targetUser + '@' + targetIp + ':' + targetDeployPath)
+    child = pexpect.spawn('scp -r redeploy.zip repackage.py redeployApplication.sh '+ targetUser + '@' + targetIp + ':' + targetDeployPath)
     child.logfile = sys.stdout
     __scpExpectIteration(child, targetUserPwd)
 
@@ -123,14 +123,14 @@ def __scpExpectIteration(child, targetUserPwd):
         pass
 
 
-def __executeRemoteScript(targetIp, targetUser, targetUserPwd, targetDeployPath):
+def __executeRemoteScript(targetIp, targetUser, targetUserPwd, targetDeployPath, targetPackage):
     logger.info('execute repackage.py script in remote target server.')
     child = pexpect.spawn('ssh ' + targetUser + '@' + targetIp, timeout=None)
     child.logfile = sys.stdout
-    __exeucteRemoteScriptExpectIteration(child, targetUserPwd, targetDeployPath)
+    __exeucteRemoteScriptExpectIteration(child, targetUserPwd, targetDeployPath, targetPackage)
 
 
-def __exeucteRemoteScriptExpectIteration(child, targetUserPwd, targetDeployPath):
+def __exeucteRemoteScriptExpectIteration(child, targetUserPwd, targetDeployPath, targetPackage):
     result = child.expect(['Are you sure you want to continue connecting', '(?i)password:', pexpect.TIMEOUT, pexpect.EOF])
     if result == 0:
         child.sendline('yes')
@@ -142,6 +142,8 @@ def __exeucteRemoteScriptExpectIteration(child, targetUserPwd, targetDeployPath)
         child.expect('#')
         child.sendline('./repackage.py')
         child.expect('#')
+        child.sendline('./redeployApplication.sh ' + targetPackage)
+        child.expect('#')
         child.sendline('exit')
         __exeucteRemoteScriptExpectIteration(child, targetUserPwd, targetDeployPath)
     if result ==2:
@@ -150,45 +152,56 @@ def __exeucteRemoteScriptExpectIteration(child, targetUserPwd, targetDeployPath)
         pass
 
 
+def __rollback():
+    shutil.rmtree(REDEPLOY_DIR, ignore_errors=True)
+    shutil.rmtree('redeploy.zip', ignore_errors=True)
+
+
 def main():
     jsonFile = open('redeploy.json', 'rb')
     redeployData = json.load(jsonFile)
-    
-    sourcePackageNames = redeployData['sourcePackages']
-    packageInfos = redeployData['packages']
-
-    for packageName in sourcePackageNames:
-        packageInfo = __loadPackageInfo(packageInfos, packageName)
-
-        searchDir = packageInfo['filePath']
-
-        if 'filter' in packageInfo:
-            searchFilter = packageInfo['filter']
-        else:
-            searchFilter = '*'
-
-        changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 600)
-        
-        if len(changedFiles) != 0:
-            __copyRedeployFiles(changedFiles, packageName)
-
-    jsonFile.close()
 
     try:
-        shutil.copy('redeploy.json', REDEPLOY_DIR)
+        sourcePackageNames = redeployData['sourcePackages']
+        packageInfos = redeployData['packages']
+
+        for packageName in sourcePackageNames:
+            packageInfo = __loadPackageInfo(packageInfos, packageName)
+
+            searchDir = packageInfo['filePath']
+
+            if 'filter' in packageInfo:
+                searchFilter = packageInfo['filter']
+            else:
+                searchFilter = '*'
+
+            changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 600)
+            
+            if len(changedFiles) != 0:
+                __copyRedeployFiles(changedFiles, packageName)
+
+        jsonFile.close()
+
+        try:
+            shutil.copy('redeploy.json', REDEPLOY_DIR)
+        except:
+            pass
+
+        __compressAndPackage(REDEPLOY_DIR, 'redeploy.zip')
+
+        if not sys.platform.startswith('win'):
+            targetIp = redeployData['targetServerIP']
+            targetUser = redeployData['targetServerUser']
+            targetUserPwd = redeployData['targetServerPwd']
+            targetDeployPath = redeployData['targetServerDeployPath']
+            targetPackage = redeployData['targetPackage']
+
+            __scpFiles(targetIp, targetUser, targetUserPwd, targetDeployPath)
+            __executeRemoteScript(targetIp, targetUser, targetUserPwd, targetDeployPath, targetPackage)
     except:
-        pass
+        __rollback()
+        jsonFile.close()
 
-    __compressAndPackage(REDEPLOY_DIR, 'redeploy.zip')
-
-    if not sys.platform.startswith('win'):
-        targetIp = redeployData['targetServerIP']
-        targetUser = redeployData['targetServerUser']
-        targetUserPwd = redeployData['targetServerPwd']
-        targetDeployPath = redeployData['targetServerDeployPath']
-
-        __scpFiles(targetIp, targetUser, targetUserPwd, targetDeployPath)
-        __executeRemoteScript(targetIp, targetUser, targetUserPwd, targetDeployPath)
 
 if __name__ == "__main__":
     main()

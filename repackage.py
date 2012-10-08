@@ -45,8 +45,7 @@ def __searchOldPackage(packageFilterName):
     if packageFile == '':
         logger.error('package not found by filter: ' + packageFilterName)
         exit(1)
-    else:
-        logger.info('package found: ' + packageFile)
+
     return packageFile
 
 
@@ -55,11 +54,12 @@ def __backupOldPackage(packageFile):
     currentTimeString = getCurrentDateTime()
     logger.info('backup old package: ' + packageFile)
     shutil.copy(packageFile, packageFile + '_' + currentTimeString)
+
+    return packageFile + '_' + currentTimeString
         
         
 ### extract the old package files into desPackageDir
 def __extractPackageFiles(packageFile, desPackageDir):
-    logger.info('extract package files: ' + packageFile + ' into ' + desPackageDir)
     z = zipfile.ZipFile(packageFile)
     z.extractall(desPackageDir)
 
@@ -109,52 +109,63 @@ def __cleanUpFileOrDir(tempFileOrDir):
 
 def __updatePackageFiles(packageName, packageType, needBackup):
     packageFile = __searchOldPackage(packageName + '*.' + packageType)
+    backupFile = ''
 
     if needBackup:
-        __backupOldPackage(packageFile)
+        backupFile = __backupOldPackage(packageFile)
 
     packageDir = os.path.dirname(packageFile)
     tempExtractDir = os.path.join(packageDir, TEMP_EXTRACT_DIR)
     __extractPackageFiles(packageFile, tempExtractDir)
     __updateModifiedFiles(os.path.join(REDEPLOY_DIR, packageName), tempExtractDir, packageName, packageType)
 
-    return packageFile
+    return packageFile, backupFile
+
+
+def __rollback(newPackageFile, backupPackageFile):
+    if (os.path.exists(backupPackageFile)):
+        os.remove(newPackageFile)
+        os.rename(backupPackageFile, newPackageFile)
 
 
 def main():
     __cleanUpOldTempFiles()
     __extractPackageFiles(REDEPLOY_ZIP, REDEPLOY_DIR)
 
-    jsonFile = open(os.path.join(REDEPLOY_DIR,'redeploy.json'), 'rb')
-    redeployData = json.load(jsonFile)
+    try:
+        jsonFile = open(os.path.join(REDEPLOY_DIR,'redeploy.json'), 'rb')
+        redeployData = json.load(jsonFile)
 
-    targetPackage = redeployData['targetPackage']
-    sourcePackages = redeployData['sourcePackages']
-    packageInfos = redeployData['packages']
-    
-    # first, find the target package in dest server, and un-package it, and replace the files in .redeploy's target package folder.    
-    targetPackageType = __getPackageType(packageInfos, targetPackage)
-    packageFile = __updatePackageFiles(targetPackage, targetPackageType, True)
-    
-    # second, replace the files in .redeploy's left sub-packages.
-    for sourcePackage in sourcePackages:
-        if sourcePackage != targetPackage:
-            sourcePackageType = __getPackageType(packageInfos, sourcePackage)
-            sourcePackageFile = __updatePackageFiles(sourcePackage, sourcePackageType, False)
+        targetPackage = redeployData['targetPackage']
+        sourcePackages = redeployData['sourcePackages']
+        packageInfos = redeployData['packages']
+        
+        # first, find the target package in dest server, and un-package it, and replace the files in .redeploy's target package folder.    
+        targetPackageType = __getPackageType(packageInfos, targetPackage)
+        packageFile = __updatePackageFiles(targetPackage, targetPackageType, True)
+        
+        # second, replace the files in .redeploy's left sub-packages.
+        for sourcePackage in sourcePackages:
+            if sourcePackage != targetPackage:
+                sourcePackageType = __getPackageType(packageInfos, sourcePackage)
+                sourcePackageFile, backupPackageFile = __updatePackageFiles(sourcePackage, sourcePackageType, False)
 
-            sourcePackageDir = os.path.dirname(sourcePackageFile)
-            tempExtractDir = os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR)
-            __repackageFiles(tempExtractDir, sourcePackageFile)
-            __cleanUpFileOrDir(os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR))
+                sourcePackageDir = os.path.dirname(sourcePackageFile)
+                tempExtractDir = os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR)
+                __repackageFiles(tempExtractDir, sourcePackageFile)
+                __cleanUpFileOrDir(os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR))
 
-    __repackageFiles(TEMP_EXTRACT_DIR, packageFile)
-    jsonFile.close()
+        __repackageFiles(TEMP_EXTRACT_DIR, packageFile)
+        jsonFile.close()
 
-    __cleanUpFileOrDir(TEMP_EXTRACT_DIR)
-    __cleanUpFileOrDir(REDEPLOY_DIR)
-    __cleanUpFileOrDir(REDEPLOY_ZIP)
+        __cleanUpFileOrDir(TEMP_EXTRACT_DIR)
+        __cleanUpFileOrDir(REDEPLOY_DIR)
+        __cleanUpFileOrDir(REDEPLOY_ZIP)
 
-    logger.info('repackage finished.')
+        logger.info('repackage finished.')
+    except:
+        __rollback(packageFile, backupPackageFile)
+        jsonFile.close()
     
 
 if __name__ == "__main__":
