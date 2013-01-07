@@ -56,7 +56,7 @@ def __backupOldPackage(packageFile):
     shutil.copy(packageFile, packageFile + '_' + currentTimeString)
 
     return packageFile + '_' + currentTimeString
-        
+         
         
 ### extract the old package files into desPackageDir
 def __extractPackageFiles(packageFile, desPackageDir):
@@ -91,13 +91,13 @@ def __repackageFiles(tempPackageDir, oldPackageFile):
             zip.write(fn, fn[rootlen:])
 
 
-def __getPackageType(packageInfos, packageName):
+def __getPackageAttribute(packageInfos, packageName, packageAttribute):
     for packageInfo in packageInfos:
         if packageName in packageInfo:
-            return packageInfo[packageName]['packageType']
+            return packageInfo[packageName][packageAttribute]
 
-    logger.error('Can not find package type of package: ' + packageName)
-    exit(1)
+    logger.error('Can not find package attribute of package: ' + packageName)
+    exit(1)    
 
 def __cleanUpFileOrDir(tempFileOrDir):
     if os.path.exists(tempFileOrDir):
@@ -137,22 +137,28 @@ def main():
         redeployData = json.load(jsonFile)
 
         targetPackage = redeployData['targetPackage']
+        targetPackageType = redeployData['targetPackageType']
         sourcePackages = redeployData['sourcePackages']
         packageInfos = redeployData['packages']
         
-        # first, find the target package in dest server, and un-package it, and replace the files in .redeploy's target package folder.    
-        targetPackageType = __getPackageType(packageInfos, targetPackage)
-        packageFile = __updatePackageFiles(targetPackage, targetPackageType, True)
+        # first, backup old target package and extract the target package into temp folder.
+        packageFile = __searchOldPackage(targetPackage + '*.' + targetPackageType)
+        __backupOldPackage(packageFile)
+        packageDir = os.path.dirname(packageFile)
+        tempExtractDir = os.path.join(packageDir, TEMP_EXTRACT_DIR)
+        __extractPackageFiles(packageFile, tempExtractDir)
         
         # second, replace the files in .redeploy's left sub-packages.
         for sourcePackage in sourcePackages:
-            if sourcePackage != targetPackage:
-                sourcePackageType = __getPackageType(packageInfos, sourcePackage)
+            sourcePackageType = __getPackageAttribute(packageInfos, sourcePackage, 'packageType')
+            isInnerPackage = __getPackageAttribute(packageInfos, sourcePackage, 'innerPackage')
+            if not isInnerPackage:
+                __updateModifiedFiles(os.path.join(REDEPLOY_DIR, packageName), tempExtractDir, sourcePackage, sourcePackageType)
+            else:
                 sourcePackageFile, backupPackageFile = __updatePackageFiles(sourcePackage, sourcePackageType, False)
-
                 sourcePackageDir = os.path.dirname(sourcePackageFile)
-                tempExtractDir = os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR)
-                __repackageFiles(tempExtractDir, sourcePackageFile)
+                subTempExtractDir = os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR)
+                __repackageFiles(subTempExtractDir, sourcePackageFile)
                 __cleanUpFileOrDir(os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR))
 
         __repackageFiles(TEMP_EXTRACT_DIR, packageFile)

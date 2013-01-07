@@ -2,7 +2,6 @@
 
 import os
 import fnmatch
-import string
 import shutil
 import logging
 import json
@@ -12,8 +11,8 @@ import sys
 if not sys.platform.startswith('win'):
     import pexpect
 
-REDEPLOY_DIR='.redeploy'
-PACKAGE_INFO_FILE='package-info.json'
+REDEPLOY_DIR = '.redeploy'
+PACKAGE_INFO_FILE = 'package-info.json'
 
 
 FORMAT = '%(asctime)-15s %(message)s'
@@ -22,13 +21,13 @@ logging.basicConfig(format=FORMAT)
 logger = logging.getLogger('redeploy')
 logger.setLevel(logging.INFO)
 
-
+ 
 def __isFileModifiedWithinPeriod(comparedFile, baseFile, periodInSec):
     if(periodInSec == -1):
         return os.stat(comparedFile).st_mtime == os.stat(baseFile).st_mtime
     else:
         return os.stat(comparedFile).st_mtime + periodInSec >= os.stat(baseFile).st_mtime
-    
+
 
 def __searchLastestModifiedFilesInDir(dir, filter, periodInSec=-1):
     changedFiles=[]
@@ -124,7 +123,7 @@ def __scpExpectIteration(child, targetUserPwd):
 
 
 def __executeRemoteScript(targetIp, targetUser, targetUserPwd, targetDeployPath, targetPackage):
-    logger.info('execute repackage.py script in remote target server.')
+    logger.info('execute repackage.py and reinstallApplication.sh script in remote target server.')
     child = pexpect.spawn('ssh ' + targetUser + '@' + targetIp, timeout=None)
     child.logfile = sys.stdout
     __exeucteRemoteScriptExpectIteration(child, targetUserPwd, targetDeployPath, targetPackage)
@@ -175,7 +174,7 @@ def main():
             else:
                 searchFilter = '*'
 
-            changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 600)
+            changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 60)
             
             if len(changedFiles) != 0:
                 __copyRedeployFiles(changedFiles, packageName)

@@ -1,23 +1,19 @@
 {
-	"targetServerIP": "10.44.131.75",
+	"targetServerIP": "10.44.132.113",
 	"targetServerUser": "root",
 	"targetServerPwd": "rootroot",
-	"targetServerDeployPath": "/home/occas/deployables/oauth2-api",
-	
-	"targetPackage": "oauth2-api",
+	"targetServerDeployPath": "/home/occas/deployables/user-profile",
+	"targetPackage": "user-profile",
+	"targetPackageType": "ear",
 	"sourcePackages": [
-		"oauth-common",
-		"oauth2-api"
+		"msdp-response-formatter"
 	],
 	"packages": [
 		{
-			"oauth2-api": {				
-				"packageType": "war",
-				"filePath": "C:\\work\\ECE\\oauth\\oauth-server\\oauth-server\\target\\classes"
-			},
-			"oauth-common": {
+			"msdp-response-formatter": {			
 				"packageType": "jar",
-				"filePath": "C:\\work\\ECE\\oauth\\oauth-common\\target\\classes"
+				"innerPackage": true,
+				"filePath": "C:\\work\\ECE\\integration-msdp\\MsdpResponseFormatter\\target\\classes"
 			}
 		}
 	]
