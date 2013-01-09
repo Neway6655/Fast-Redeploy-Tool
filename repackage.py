@@ -89,6 +89,7 @@ def __repackageFiles(tempPackageDir, oldPackageFile):
         for file in files:
             fn = os.path.join(base, file)
             zip.write(fn, fn[rootlen:])
+    logger.info('repackage finished: ' + oldPackageFile)
 
 
 def __getPackageAttribute(packageInfos, packageName, packageAttribute):
