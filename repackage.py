@@ -66,6 +66,7 @@ def __extractPackageFiles(packageFile, desPackageDir):
 
 ### update the modified files into the desFilesDir.
 def __updateModifiedFiles(modifiedFilesDir, desFilesDir, packageName, packageType):
+    logger.info('update modified files of package: ' + packageName)
     dst = desFilesDir
     if packageType == 'war':
         dst = os.path.join(desFilesDir, 'WEB-INF', 'classes')
@@ -154,8 +155,10 @@ def main():
             sourcePackageType = __getPackageAttribute(packageInfos, sourcePackage, 'packageType')
             isInnerPackage = __getPackageAttribute(packageInfos, sourcePackage, 'innerPackage')
             if not isInnerPackage:
-                __updateModifiedFiles(os.path.join(REDEPLOY_DIR, packageName), tempExtractDir, sourcePackage, sourcePackageType)
+                logger.info('repackage the outer package: ' + sourcePackage)
+                __updateModifiedFiles(os.path.join(REDEPLOY_DIR, sourcePackage), tempExtractDir, sourcePackage, sourcePackageType)
             else:
+                logger.info('repackage the inner package: ' + sourcePackage)
                 sourcePackageFile, backupPackageFile = __updatePackageFiles(sourcePackage, sourcePackageType, False)
                 sourcePackageDir = os.path.dirname(sourcePackageFile)
                 subTempExtractDir = os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR)
