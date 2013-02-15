@@ -1,20 +1,25 @@
 {
-	"targetServerIP": "10.44.132.113",
-	"targetServerUser": "root",
-	"targetServerPwd": "rootroot",
-	"targetServerDeployPath": "/home/occas/deployables/user-profile",
-	"targetPackage": "user-profile",
-	"targetPackageType": "ear",
+	"targetServerIP": "ipaddress", // example: 127.0.0.1
+	"targetServerUser": "user",
+	"targetServerPwd": "password",
+	"targetServerDeployPath": "targetDeployPath", // example: /home/deploy/appPackageName
+	"targetPackage": "appPackageName",	// example: application
+	"targetPackageType": "ear",	// example: ear(jar, war...)
 	"sourcePackages": [
-		"msdp-response-formatter"
+		"sourcePackage1", "sourcePackage2"
 	],
 	"packages": [
 		{
-			"msdp-response-formatter": {			
+			"sourcePackage1": {
 				"packageType": "jar",
 				"innerPackage": true,
-				"filePath": "C:\\work\\ECE\\integration-msdp\\MsdpResponseFormatter\\target\\classes"
-			}
+				"filePath": "localPackageFilePath"	// example: local dev target files, if is maven project, the path usually is the target folder.
+			},
+			"sourcePackage2": {
+				"packageType": "war",
+				"innerPackage": false,
+				"filePath": "localPackageFilePath"	// example: local dev target files, if is maven project, the path usually is the target folder.
+			},
 		}
 	]
 }

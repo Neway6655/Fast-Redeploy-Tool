@@ -36,17 +36,19 @@ def __cleanUpOldTempFiles():
 
 ### search the old package file filter by package name.
 def __searchOldPackage(packageFilterName):
-    packageFile = ''
+    packageFilePath = ''
+    packageFileName = ''
     for root,dirnames,filenames in os.walk('.'):
         for filename in fnmatch.filter(filenames, packageFilterName):
-            packageFile = os.path.join(root,filename)
+            packageFilePath = os.path.join(root,filename)
+            packageFileName = filename
             break
         
-    if packageFile == '':
+    if packageFilePath == '':
         logger.error('package not found by filter: ' + packageFilterName)
         exit(1)
 
-    return packageFile
+    return packageFilePath, packageFileName
 
 
 ### back up the old package with current dateTime as suffix.
@@ -84,12 +86,7 @@ def __updateModifiedFiles(modifiedFilesDir, desFilesDir, packageName, packageTyp
 
 ### re-package the tempPackageDir as an new package and replace the oldPackageFile
 def __repackageFiles(tempPackageDir, oldPackageFile):
-    zip = zipfile.ZipFile(oldPackageFile, 'w', compression=zipfile.ZIP_DEFLATED)
-    rootlen = len(tempPackageDir) + 1
-    for base, dirs, files in os.walk(tempPackageDir):
-        for file in files:
-            fn = os.path.join(base, file)
-            zip.write(fn, fn[rootlen:])
+    os.system("cd " + tempPackageDir + "; jar cf " + oldPackageFile + " *; cd ..")
     logger.info('repackage finished: ' + oldPackageFile)
 
 
@@ -110,18 +107,18 @@ def __cleanUpFileOrDir(tempFileOrDir):
 
 
 def __updatePackageFiles(packageName, packageType, needBackup):
-    packageFile = __searchOldPackage(packageName + '*.' + packageType)
+    packageFilePath, packageFileName = __searchOldPackage(packageName + '*.' + packageType)
     backupFile = ''
 
     if needBackup:
-        backupFile = __backupOldPackage(packageFile)
+        backupFile = __backupOldPackage(packageFilePath)
 
-    packageDir = os.path.dirname(packageFile)
+    packageDir = os.path.dirname(packageFilePath)
     tempExtractDir = os.path.join(packageDir, TEMP_EXTRACT_DIR)
-    __extractPackageFiles(packageFile, tempExtractDir)
+    __extractPackageFiles(packageFilePath, tempExtractDir)
     __updateModifiedFiles(os.path.join(REDEPLOY_DIR, packageName), tempExtractDir, packageName, packageType)
 
-    return packageFile, backupFile
+    return packageFilePath, packageFileName, backupFile
 
 
 def __rollback(newPackageFile, backupPackageFile):
@@ -144,11 +141,11 @@ def main():
         packageInfos = redeployData['packages']
         
         # first, backup old target package and extract the target package into temp folder.
-        packageFile = __searchOldPackage(targetPackage + '*.' + targetPackageType)
-        __backupOldPackage(packageFile)
-        packageDir = os.path.dirname(packageFile)
+        packageFilePath, packageFileName = __searchOldPackage(targetPackage + '*.' + targetPackageType)
+        __backupOldPackage(packageFilePath)
+        packageDir = os.path.dirname(packageFilePath)
         tempExtractDir = os.path.join(packageDir, TEMP_EXTRACT_DIR)
-        __extractPackageFiles(packageFile, tempExtractDir)
+        __extractPackageFiles(packageFilePath, tempExtractDir)
         
         # second, replace the files in .redeploy's left sub-packages.
         for sourcePackage in sourcePackages:
@@ -159,13 +156,13 @@ def main():
                 __updateModifiedFiles(os.path.join(REDEPLOY_DIR, sourcePackage), tempExtractDir, sourcePackage, sourcePackageType)
             else:
                 logger.info('repackage the inner package: ' + sourcePackage)
-                sourcePackageFile, backupPackageFile = __updatePackageFiles(sourcePackage, sourcePackageType, False)
-                sourcePackageDir = os.path.dirname(sourcePackageFile)
+                sourcePackageFilePath, sourcePackageFileName, backupPackageFile = __updatePackageFiles(sourcePackage, sourcePackageType, False)
+                sourcePackageDir = os.path.dirname(sourcePackageFilePath)
                 subTempExtractDir = os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR)
-                __repackageFiles(subTempExtractDir, sourcePackageFile)
-                __cleanUpFileOrDir(os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR))
+                __repackageFiles(subTempExtractDir, sourcePackageFileName)
+                __cleanUpFileOrDir(subTempExtractDir)
 
-        __repackageFiles(TEMP_EXTRACT_DIR, packageFile)
+        __repackageFiles(TEMP_EXTRACT_DIR, packageFilePath)
         jsonFile.close()
 
         __cleanUpFileOrDir(TEMP_EXTRACT_DIR)
