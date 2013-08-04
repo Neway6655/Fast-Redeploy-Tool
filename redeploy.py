@@ -7,6 +7,7 @@ import logging
 import json
 import zipfile
 import sys
+import traceback
 
 if not sys.platform.startswith('win'):
     import pexpect
@@ -163,6 +164,7 @@ def main():
     try:
         sourcePackageNames = redeployData['sourcePackages']
         packageInfos = redeployData['packages']
+        modificationDurationInSec = redeployData['modificationDurationInSec']
 
         for packageName in sourcePackageNames:
             packageInfo = __loadPackageInfo(packageInfos, packageName)
@@ -174,7 +176,7 @@ def main():
             else:
                 searchFilter = '*'
 
-            changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, 60)
+            changedFiles = __searchLastestModifiedFilesInDir(searchDir, searchFilter, modificationDurationInSec)
             
             if len(changedFiles) != 0:
                 __copyRedeployFiles(changedFiles, packageName)
@@ -198,6 +200,8 @@ def main():
             __scpFiles(targetIp, targetUser, targetUserPwd, targetDeployPath)
             __executeRemoteScript(targetIp, targetUser, targetUserPwd, targetDeployPath, targetPackage)
     except:
+        logger.info('error happened, rollback.')
+        traceback.print_exc()
         __rollback()
         jsonFile.close()
 

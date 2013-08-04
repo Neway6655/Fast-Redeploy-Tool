@@ -7,6 +7,8 @@ import shutil
 import zipfile
 import logging
 import json
+import re
+import traceback
 from datetime import datetime
 
 
@@ -77,16 +79,17 @@ def __updateModifiedFiles(modifiedFilesDir, desFilesDir, packageName, packageTyp
         index = root.find(packageName) + len(packageName) + 1
         if not index > len(root) + 1:
             for dirname in dirnames:
-                if not os.path.exists(os.path.join(dst, root[index:], dirname)):
-                    os.makedirs(os.path.join(dst, root[index:], dirnames))
+                dirnameEscape = re.escape(str(dirname))
+                if not os.path.exists(os.path.join(dst, root[index:], dirnameEscape)):
+                    os.makedirs(os.path.join(dst, root[index:], dirnameEscape))
             for filename in filenames:
                 logger.info('update file: ' + filename)
-                shutil.copy(os.path.join(root, filename), os.path.join(dst, root[index:], filename))
+                shutil.copy(r''+(str(os.path.join(root, filename))), r''+(str(os.path.join(dst, root[index:], filename))))
 
 
 ### re-package the tempPackageDir as an new package and replace the oldPackageFile
 def __repackageFiles(tempPackageDir, oldPackageFile):
-    os.system("cd " + tempPackageDir + "; jar cf " + oldPackageFile + " *; cd ..")
+    os.system("cd " + tempPackageDir + "; jar cf " + oldPackageFile + " *; mv -f "+ oldPackageFile +" ../; cd ..")
     logger.info('repackage finished: ' + oldPackageFile)
 
 
@@ -108,17 +111,16 @@ def __cleanUpFileOrDir(tempFileOrDir):
 
 def __updatePackageFiles(packageName, packageType, needBackup):
     packageFilePath, packageFileName = __searchOldPackage(packageName + '*.' + packageType)
-    backupFile = ''
 
     if needBackup:
-        backupFile = __backupOldPackage(packageFilePath)
+        __backupOldPackage(packageFilePath)
 
     packageDir = os.path.dirname(packageFilePath)
     tempExtractDir = os.path.join(packageDir, TEMP_EXTRACT_DIR)
     __extractPackageFiles(packageFilePath, tempExtractDir)
     __updateModifiedFiles(os.path.join(REDEPLOY_DIR, packageName), tempExtractDir, packageName, packageType)
 
-    return packageFilePath, packageFileName, backupFile
+    return packageFilePath, packageFileName
 
 
 def __rollback(newPackageFile, backupPackageFile):
@@ -142,7 +144,7 @@ def main():
         
         # first, backup old target package and extract the target package into temp folder.
         packageFilePath, packageFileName = __searchOldPackage(targetPackage + '*.' + targetPackageType)
-        __backupOldPackage(packageFilePath)
+        backupPackageFilePath = __backupOldPackage(packageFilePath)
         packageDir = os.path.dirname(packageFilePath)
         tempExtractDir = os.path.join(packageDir, TEMP_EXTRACT_DIR)
         __extractPackageFiles(packageFilePath, tempExtractDir)
@@ -156,22 +158,26 @@ def main():
                 __updateModifiedFiles(os.path.join(REDEPLOY_DIR, sourcePackage), tempExtractDir, sourcePackage, sourcePackageType)
             else:
                 logger.info('repackage the inner package: ' + sourcePackage)
-                sourcePackageFilePath, sourcePackageFileName, backupPackageFile = __updatePackageFiles(sourcePackage, sourcePackageType, False)
+                sourcePackageFilePath, sourcePackageFileName = __updatePackageFiles(sourcePackage, sourcePackageType, False)
                 sourcePackageDir = os.path.dirname(sourcePackageFilePath)
                 subTempExtractDir = os.path.join(sourcePackageDir, TEMP_EXTRACT_DIR)
                 __repackageFiles(subTempExtractDir, sourcePackageFileName)
                 __cleanUpFileOrDir(subTempExtractDir)
 
+        logger.info('finish replacing files.')
         __repackageFiles(TEMP_EXTRACT_DIR, packageFilePath)
         jsonFile.close()
 
+        logger.info('finish repackage.')
         __cleanUpFileOrDir(TEMP_EXTRACT_DIR)
         __cleanUpFileOrDir(REDEPLOY_DIR)
         __cleanUpFileOrDir(REDEPLOY_ZIP)
 
         logger.info('repackage finished.')
     except:
-        __rollback(packageFile, backupPackageFile)
+        logger.info('Error happens, rollback.')
+        traceback.print_exc()
+        __rollback(packageFilePath, backupPackageFilePath)
         jsonFile.close()
     
 
