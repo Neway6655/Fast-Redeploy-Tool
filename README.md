@@ -9,6 +9,7 @@ Python 2.7(or 2.6) installed in your machine.
 How to use it:
 * config redeploy.json, comments as below:
 
+```
 {
 	// the redeployed target server ip address
 	"targetServerIP": "10.44.132.113",
@@ -35,6 +36,7 @@ How to use it:
 		}
 	]
 }
+```
 
 * execute the redeploy.py and an redeploy.zip file will be generated(if you are in windows.), then all the files modified will be packaged into it.
 
