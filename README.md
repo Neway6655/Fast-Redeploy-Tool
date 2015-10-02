@@ -12,11 +12,11 @@ How to use it:
 ```
 {
 	// the redeployed target server ip address
-	"targetServerIP": "10.44.132.113",
-	"targetServerUser": "root",
-	"targetServerPwd": "rootroot",
+	"targetServerIP": "host",
+	"targetServerUser": "user",
+	"targetServerPwd": "password",
 	// the path of the redeploy packaged folder.
-	"targetServerDeployPath": "/home/occas/deployables/user-profile",
+	"targetServerDeployPath": "/home/deployables/user-profile",
 	// redeploy package name
 	"targetPackage": "user-profile",
 	// redeploy package type
@@ -31,7 +31,7 @@ How to use it:
 			"access-common": {
 				"packageType": "jar",
 				"innerPackage": true,
-				"filePath": "C:\\work\\ECE\\common-function\\access-common\\target\\classes"
+				"filePath": "C:\\example\\code\\common-function\\target\\classes"
 			}
 		}
 	]
